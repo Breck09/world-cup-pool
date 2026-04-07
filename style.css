@@ -1,0 +1,33 @@
+body {
+  font-family: Arial;
+  background: #f5f5f5;
+  padding: 20px;
+}
+
+h1, h2 {
+  text-align: center;
+}
+
+.group {
+  background: white;
+  padding: 10px;
+  margin: 10px;
+  border-radius: 8px;
+}
+
+select {
+  display: block;
+  margin: 5px 0;
+}
+
+.match {
+  background: white;
+  margin: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.winner {
+  background: lightgreen;
+}
