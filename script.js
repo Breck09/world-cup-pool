@@ -14,12 +14,15 @@ const groups = {
 };
 
 const groupContainer = document.getElementById("groups");
+const bracketDiv = document.getElementById("bracket");
 
+let bracket = [];
+
+// ---------------- GROUPS ----------------
 function createGroups() {
   for (let g in groups) {
     let div = document.createElement("div");
     div.className = "group";
-
     div.innerHTML = `<h3>Group ${g}</h3>`;
 
     groups[g].forEach(team => {
@@ -32,6 +35,7 @@ function createGroups() {
         select.appendChild(option);
       });
 
+      select.onchange = saveData;
       div.appendChild(select);
     });
 
@@ -39,6 +43,7 @@ function createGroups() {
   }
 }
 
+// ---------------- GET QUALIFIERS ----------------
 function getTopTeams() {
   let topTeams = [];
 
@@ -46,10 +51,8 @@ function getTopTeams() {
     let selections = [];
 
     groupDiv.querySelectorAll("select").forEach(sel => {
-      let text = sel.options[sel.selectedIndex].text;
-      let team = text.split(" - ")[0];
+      let team = sel.options[sel.selectedIndex].text.split(" - ")[0];
       let pos = parseInt(sel.value);
-
       selections.push({ team, pos });
     });
 
@@ -62,29 +65,117 @@ function getTopTeams() {
   return topTeams;
 }
 
+// ---------------- GENERATE FULL BRACKET ----------------
 function generateBracket() {
-  const bracketDiv = document.getElementById("bracket");
+  bracket = [];
   bracketDiv.innerHTML = "";
 
-  const teams = getTopTeams();
+  let teams = getTopTeams();
 
-  for (let i = 0; i < teams.length; i += 2) {
-    let match = document.createElement("div");
-    match.className = "match";
+  // Build rounds
+  while (teams.length > 1) {
+    let round = [];
 
-    match.innerHTML = `
-      <div onclick="pickWinner(this)">${teams[i]}</div>
-      <div onclick="pickWinner(this)">${teams[i+1]}</div>
-    `;
+    for (let i = 0; i < teams.length; i += 2) {
+      round.push({
+        team1: teams[i],
+        team2: teams[i+1],
+        winner: null
+      });
+    }
 
-    bracketDiv.appendChild(match);
+    bracket.push(round);
+    teams = new Array(round.length).fill(null);
+  }
+
+  renderBracket();
+  saveData();
+}
+
+// ---------------- RENDER ----------------
+function renderBracket() {
+  bracketDiv.innerHTML = "";
+
+  bracket.forEach((round, rIndex) => {
+    let roundDiv = document.createElement("div");
+    roundDiv.className = "bracket-round";
+
+    round.forEach((match, mIndex) => {
+      let matchDiv = document.createElement("div");
+      matchDiv.className = "match";
+
+      ["team1", "team2"].forEach(teamKey => {
+        let teamDiv = document.createElement("div");
+        teamDiv.innerText = match[teamKey] || "-";
+
+        if (match.winner === match[teamKey]) {
+          teamDiv.classList.add("winner");
+        }
+
+        teamDiv.onclick = () => pickWinner(rIndex, mIndex, teamKey);
+
+        matchDiv.appendChild(teamDiv);
+      });
+
+      roundDiv.appendChild(matchDiv);
+    });
+
+    bracketDiv.appendChild(roundDiv);
+  });
+}
+
+// ---------------- PICK WINNER ----------------
+function pickWinner(r, m, teamKey) {
+  let match = bracket[r][m];
+  let winner = match[teamKey];
+
+  match.winner = winner;
+
+  // Advance to next round
+  if (bracket[r+1]) {
+    let nextMatchIndex = Math.floor(m / 2);
+    let nextMatch = bracket[r+1][nextMatchIndex];
+
+    if (m % 2 === 0) {
+      nextMatch.team1 = winner;
+    } else {
+      nextMatch.team2 = winner;
+    }
+  }
+
+  renderBracket();
+  saveData();
+}
+
+// ---------------- SAVE / LOAD ----------------
+function saveData() {
+  const data = {
+    groups: [],
+    bracket: bracket
+  };
+
+  document.querySelectorAll(".group select").forEach(sel => {
+    data.groups.push(sel.value);
+  });
+
+  localStorage.setItem("wc2026", JSON.stringify(data));
+}
+
+function loadData() {
+  const data = JSON.parse(localStorage.getItem("wc2026"));
+  if (!data) return;
+
+  let selects = document.querySelectorAll(".group select");
+  selects.forEach((sel, i) => {
+    sel.value = data.groups[i];
+  });
+
+  if (data.bracket.length > 0) {
+    bracket = data.bracket;
+    renderBracket();
   }
 }
 
-function pickWinner(el) {
-  const parent = el.parentElement;
-  [...parent.children].forEach(c => c.classList.remove("winner"));
-  el.classList.add("winner");
-}
-
+// ---------------- INIT ----------------
 createGroups();
+setTimeout(loadData, 100);
